@@ -1,0 +1,113 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - CodeAlpha Social</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
+    <style>
+        body { background-color: #f9f9f9; font-family: "Roboto", Arial, sans-serif; transition: 0.3s; }
+        .yt-header { background: white; padding: 0.5rem 1rem; position: fixed; top: 0; width: 100%; z-index: 1050; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        .yt-logo { font-weight: 900; color: #ff0000; font-size: 1.4rem; text-decoration: none; display: flex; align-items: center; }
+        .search-container { flex-grow: 0.5; display: flex; }
+        .search-bar { width: 100%; border: 1px solid #ccc; padding: 6px 15px; border-radius: 40px 0 0 40px; outline: none; }
+        .search-btn { background: #f8f8f8; border: 1px solid #ccc; border-left: none; padding: 0 20px; border-radius: 0 40px 40px 0; color: #606060; cursor: pointer; }
+        .yt-sidebar { width: 240px; background: white; height: 100vh; position: fixed; top: 56px; left: 0; padding-top: 10px; overflow-y: auto; transition: transform 0.3s ease; }
+        .sidebar-item { padding: 10px 24px; display: flex; align-items: center; color: #030303; text-decoration: none; transition: 0.2s; border-radius: 10px; margin: 0 10px; }
+        .sidebar-item:hover { background: #f2f2f2; }
+        .sidebar-item.active { background: #f2f2f2; font-weight: 600; }
+        .sidebar-item i { margin-right: 24px; font-size: 1.2rem; width: 24px; text-align: center; }
+        .sidebar-divider { border-top: 1px solid #e5e5e5; margin: 10px 0; }
+        .yt-main { margin-left: 240px; margin-top: 76px; padding: 20px; transition: margin-left 0.3s ease; }
+        .sidebar-hidden .yt-sidebar { transform: translateX(-240px); }
+        .sidebar-hidden .yt-main { margin-left: 0; }
+        @@media (max-width: 768px) { .yt-sidebar { transform: translateX(-240px); } .yt-main { margin-left: 0; } .sidebar-visible .yt-sidebar { transform: translateX(0); } }
+    </style>
+</head>
+<body>
+    <header class="yt-header">
+        <div class="d-flex align-items-center">
+            <button class="btn btn-light rounded-circle me-3 border-0" id="toggleSidebar">
+                <i class="fas fa-bars"></i>
+            </button>
+            <a class="yt-logo" asp-controller="Home" asp-action="Index">
+                <i class="fab fa-youtube me-1"></i> CodeAlpha
+            </a>
+        </div>
+
+        <div class="search-container d-none d-md-flex">
+            <form asp-controller="Search" asp-action="Index" method="get" class="w-100 d-flex">
+                <input type="text" name="query" class="search-bar" placeholder="Search..." value="@ViewBag.SearchQuery" />
+                <button type="submit" class="search-btn"><i class="fas fa-search"></i></button>
+            </form>
+        </div>
+
+        <div class="d-flex align-items-center">
+            @if (Context.Session.GetInt32("UserId") != null)
+            {
+                <a asp-controller="Post" asp-action="Create" class="btn btn-light rounded-circle me-2" title="Create Post">
+                    <i class="fas fa-video"></i>
+                </a>
+                <a asp-controller="Channel" asp-action="Index" asp-route-id="@Context.Session.GetInt32("UserId")">
+                    <img src="@(string.IsNullOrEmpty(Context.Session.GetString("UserPic")) ? "/images/default-user.png" : Context.Session.GetString("UserPic"))" 
+                         class="rounded-circle ms-2 shadow-sm" width="32" height="32" style="object-fit: cover;" onerror="this.src='/images/default-user.png';" />
+                </a>
+            }
+            else
+            {
+                <a asp-controller="Account" asp-action="Login" class="btn btn-outline-primary rounded-pill px-3">
+                    <i class="far fa-user-circle me-2"></i> Sign In
+                </a>
+            }
+        </div>
+    </header>
+
+    <aside class="yt-sidebar" id="sidebar">
+        @* 1. Navigation Section *@
+        <a class="sidebar-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "Index" && ViewContext.RouteData.Values["Controller"]?.ToString() == "Home" ? "active" : "")" 
+           asp-controller="Home" asp-action="Index">
+            <i class="fas fa-home"></i> Home
+        </a>
+        
+        <div class="sidebar-divider"></div>
+        
+        @* 2. Your Work Section *@
+        <div class="px-4 py-2 small fw-bold text-muted">MY WORK</div>
+        <a class="sidebar-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "Channel" && ViewContext.RouteData.Values["Action"]?.ToString() == "Index" ? "active" : "")" 
+           asp-controller="Channel" asp-action="Index" asp-route-id="@Context.Session.GetInt32("UserId")">
+            <i class="fas fa-id-card"></i> Your Channel
+        </a>
+        <a class="sidebar-item @(ViewContext.RouteData.Values["Controller"]?.ToString() == "History" ? "active" : "")" 
+           asp-controller="History" asp-action="Index">
+            <i class="fas fa-history"></i> History
+        </a>
+        <a class="sidebar-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "MyPosts" ? "active" : "")" 
+           asp-controller="Posts" asp-action="MyPosts">
+            <i class="fas fa-clapperboard"></i> My Posts
+        </a>
+        <a class="sidebar-item @(ViewContext.RouteData.Values["Action"]?.ToString() == "LikedContent" ? "active" : "")" 
+           asp-controller="Interaction" asp-action="LikedContent">
+            <i class="fas fa-thumbs-up"></i> Liked Content
+        </a>
+    </aside>
+
+    <main class="yt-main" id="mainContent">
+        <div class="container-fluid">
+            @RenderBody()
+        </div>
+    </main>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        $(document).ready(function () {
+            $("#toggleSidebar").click(function () {
+                if ($(window).width() > 768) { $("body").toggleClass("sidebar-hidden"); } 
+                else { $("body").toggleClass("sidebar-visible"); }
+            });
+        });
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,308 @@
+﻿@model CodeAlpha_SocialMedia.Models.Post
+@using Microsoft.AspNetCore.Http
+@{
+    // YouTube video check logic
+    bool isYouTube = ViewBag.IsYouTube == true;
+    
+    // Clean Video ID logic
+    string rawVideoId = ViewBag.CurrentVideoId?.ToString() ?? "";
+    string cleanVideoId = rawVideoId.Split(',')[0].Trim(); 
+
+    ViewData["Title"] = isYouTube ? (ViewBag.CurrentTitle ?? "Watching Video") : (Model?.Content ?? "Post Details");
+    
+    var suggestedPosts = ViewBag.SuggestedPosts as IEnumerable<CodeAlpha_SocialMedia.Models.Post>;
+    var relatedYouTubeVideos = ViewBag.RelatedVideos as IEnumerable<CodeAlpha_SocialMedia.Controllers.YouTubeVideoModel>;
+    var currentUserId = Context.Session.GetInt32("UserId");
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<style>
+    .main-post-container { background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 16 / 9; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4); position: relative; }
+    .main-media-element { width: 100%; height: 100%; object-fit: contain; }
+    .action-btn { background: #f2f2f2; border: none; border-radius: 20px; padding: 8px 16px; font-weight: 600; font-size: 0.9rem; transition: 0.2s; display: flex; align-items: center; gap: 8px; text-decoration: none; color: black; cursor: pointer; }
+    .action-btn:hover { background: #e5e5e5; }
+    .comment-input-section { display: flex; gap: 15px; margin-top: 10px; }
+    .comment-input { border: none; border-bottom: 1px solid #ccc; width: 100%; padding: 5px 0; outline: none; background: transparent; }
+    .comment-input:focus { border-bottom: 2px solid #000; }
+    .user-badge-nav { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: #eee; }
+    .suggested-card { text-decoration: none !important; color: inherit; display: flex; gap: 12px; margin-bottom: 16px; transition: 0.2s; border-radius: 8px; padding: 4px; }
+    .suggested-card:hover { background: #f9f9f9; }
+    .suggested-thumb-wrapper { position: relative; width: 168px; height: 94px; flex-shrink: 0; background: #000; border-radius: 8px; overflow: hidden; }
+    .suggested-thumb { width: 100%; height: 100%; object-fit: cover; }
+    .liked-active { color: #0066ff !important; }
+    .share-icon-wrapper { text-align: center; cursor: pointer; transition: 0.2s; text-decoration: none !important; color: inherit; width: 60px; }
+    .share-icon-circle { width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 5px; color: white; font-size: 1.2rem; }
+    .btn-subscribed { background-color: #f2f2f2 !important; color: #606060 !important; border: none !important; }
+    .comments-collapse-box { max-height: 500px; overflow-y: auto; padding-right: 10px; }
+</style>
+
+<div class="container-fluid mt-3 px-lg-5">
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="main-post-container mb-3">
+                @if (isYouTube)
+                {
+                    <iframe src="https://www.youtube.com/embed/@cleanVideoId?autoplay=1&rel=0" 
+                            title="YouTube video player" frameborder="0" 
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                            allowfullscreen class="main-media-element"></iframe>
+                }
+                else if (Model != null && !string.IsNullOrEmpty(Model.ImagePath))
+                {
+                    // Fixed Path Logic
+                    var imagePath = Model.ImagePath.StartsWith("/") ? Model.ImagePath : "/" + Model.ImagePath;
+                    var extension = System.IO.Path.GetExtension(Model.ImagePath).ToLower();
+                    
+                    if (new[] { ".mp4", ".webm", ".ogg" }.Contains(extension))
+                    {
+                        <video id="mainVideo" controls autoplay class="main-media-element">
+                            <source src="@imagePath" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    }
+                    else
+                    {
+                        <img id="mainImage" src="@imagePath" class="main-media-element" alt="Post Content" onerror="this.src='/images/default-user.png';" />
+                    }
+                }
+            </div>
+
+            <h4 class="fw-bold mt-3">@(isYouTube ? ViewBag.CurrentTitle : Model?.Content)</h4>
+
+            <div class="d-flex align-items-center justify-content-between mt-3 flex-wrap gap-3">
+                <div class="d-flex align-items-center">
+                    @if (isYouTube)
+                    {
+                        <img src="https://ui-avatars.com/api/?name=YT&background=red&color=fff" class="user-badge-nav me-3" />
+                        <div>
+                            <h6 class="mb-0 fw-bold">YouTube Global</h6>
+                            <small class="text-muted">Content Creator</small>
+                        </div>
+                    }
+                    else
+                    {
+                        <img src="@(string.IsNullOrEmpty(Model?.User?.ProfilePicture) ? "/images/default-user.png" : Model.User.ProfilePicture)"
+                             class="user-badge-nav me-3" onerror="this.src='/images/default-user.png';" />
+                        <div>
+                            <h6 class="mb-0 fw-bold">@(Model?.User?.FullName ?? "Unknown User")</h6>
+                            <small class="text-muted">Author</small>
+                        </div>
+                    }
+                    <button id="subscribeBtn" class="btn btn-dark rounded-pill ms-4 px-4 fw-bold" onclick="toggleSubscribe()">Subscribe</button>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <div class="btn-group bg-light rounded-pill">
+                        @if (!isYouTube && Model != null)
+                        {
+                            <form asp-controller="Posts" asp-action="ToggleLike" method="post" style="display:inline;">
+                                <input type="hidden" name="postId" value="@Model.PostId" />
+                                @{ bool isLiked = Model.Likes != null && Model.Likes.Any(l => l.UserId == currentUserId); }
+                                <button type="submit" class="btn border-0 px-3 @(isLiked ? "liked-active" : "")">
+                                    <i class="@(isLiked ? "fas" : "far") fa-thumbs-up me-2"></i>
+                                    @(Model.Likes?.Count() ?? 0)
+                                </button>
+                            </form>
+                        }
+                        else
+                        {
+                            <button class="btn border-0 px-3"><i class="far fa-thumbs-up me-2"></i> Like</button>
+                        }
+                        <div class="vr my-2"></div>
+                        <button class="btn border-0 px-3"><i class="far fa-thumbs-down"></i></button>
+                    </div>
+
+                    <button class="action-btn" type="button" data-bs-toggle="collapse" data-bs-target="#collapseComments">
+                        <i class="fas fa-comment-alt"></i> 
+                        <span>@(isYouTube ? "0" : Model?.Comments?.Count().ToString() ?? "0")</span>
+                    </button>
+
+                    <button class="action-btn" data-bs-toggle="modal" data-bs-target="#youtubeShareModal">
+                        <i class="fas fa-share"></i> Share
+                    </button>
+                </div>
+            </div>
+
+            <div class="bg-light p-3 rounded-3 mt-3">
+                <p class="fw-bold mb-1">@(isYouTube ? DateTime.Now.ToString("MMM dd, yyyy") : Model?.CreatedAt?.ToString("MMM dd, yyyy"))</p>
+                <p class="mb-0" style="white-space: pre-wrap;">@(isYouTube ? "This video is streamed from YouTube Search." : Model?.Content)</p>
+            </div>
+            
+            <div class="collapse mt-4" id="collapseComments">
+                <div class="card card-body border-0 bg-transparent p-0">
+                    <h5 class="fw-bold">Comments</h5>
+                    @if (!isYouTube && Model != null)
+                    {
+                        <form asp-controller="Posts" asp-action="AddComment" method="post" class="comment-input-section mb-4">
+                            <input type="hidden" name="postId" value="@Model.PostId" />
+                            <img src="/images/default-user.png" class="user-badge-nav" />
+                            <div class="flex-grow-1">
+                                <input type="text" name="commentText" class="comment-input" placeholder="Add a public comment..." required />
+                                <div class="d-flex justify-content-end mt-2">
+                                    <button type="submit" class="btn btn-primary rounded-pill px-3 fw-bold">Comment</button>
+                                </div>
+                            </div>
+                        </form>
+                        <div class="comments-collapse-box">
+                            @if (Model.Comments != null && Model.Comments.Any())
+                            {
+                                @foreach (var comment in Model.Comments.OrderByDescending(c => c.CreatedAt))
+                                {
+                                    <div class="d-flex gap-3 mb-4">
+                                        <img src="@(string.IsNullOrEmpty(comment.User?.ProfilePicture) ? "/images/default-user.png" : comment.User.ProfilePicture)"
+                                             class="user-badge-nav" style="width:35px; height:35px;" onerror="this.src='/images/default-user.png';" />
+                                        <div>
+                                            <div class="d-flex align-items-center gap-2">
+                                                <span class="fw-bold small">@@@(comment.User?.FullName?.Replace(" ", "").ToLower() ?? "user")</span>
+                                                <small class="text-muted">@comment.CreatedAt?.ToString("MMM dd, yyyy")</small>
+                                            </div>
+                                            <p class="mb-1">@comment.CommentText</p>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                    else { <p class="text-muted">Comments are disabled for YouTube preview.</p> }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <h6 class="fw-bold mb-3">Up next</h6>
+            
+            @if (isYouTube && relatedYouTubeVideos != null)
+            {
+                @foreach (var yt in relatedYouTubeVideos)
+                {
+                    <a asp-controller="Search" asp-action="VideoDetails" 
+                       asp-route-videoId="@yt.VideoId" asp-route-title="@yt.Title" asp-route-thumbnail="@yt.Thumbnail" 
+                       class="suggested-card">
+                        <div class="suggested-thumb-wrapper">
+                            <img src="@yt.Thumbnail" class="suggested-thumb" alt="Thumbnail" />
+                        </div>
+                        <div class="flex-grow-1">
+                            <div style="font-size:0.9rem; font-weight:600; line-height:1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">@yt.Title</div>
+                            <small class="text-muted d-block mt-1">@yt.ChannelTitle</small>
+                            <small class="text-muted">YouTube</small>
+                        </div>
+                    </a>
+                }
+            }
+            else if (suggestedPosts != null)
+            {
+                @foreach (var item in suggestedPosts)
+                {
+                    <a asp-controller="Posts" asp-action="Details" asp-route-id="@item.PostId" class="suggested-card">
+                        <div class="suggested-thumb-wrapper">
+                            @if (!string.IsNullOrEmpty(item.ImagePath))
+                            {
+                                var ext = System.IO.Path.GetExtension(item.ImagePath).ToLower();
+                                var thumbPath = item.ImagePath.StartsWith("/") ? item.ImagePath : "/" + item.ImagePath;
+
+                                if (new[] { ".mp4", ".webm" }.Contains(ext))
+                                {
+                                    <video class="suggested-thumb" muted preload="metadata">
+                                        <source src="@thumbPath#t=0.1" type="video/mp4">
+                                    </video>
+                                }
+                                else
+                                {
+                                    <img src="@thumbPath" class="suggested-thumb" alt="Post thumbnail" />
+                                }
+                            }
+                        </div>
+                        <div class="flex-grow-1">
+                            <div style="font-size:0.9rem; font-weight:600; line-height:1.2; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">@item.Content</div>
+                            <small class="text-muted d-block mt-1">@(item.User?.FullName ?? "Unknown Author")</small>
+                            <small class="text-muted">@(item.CreatedAt?.ToString("MMM dd"))</small>
+                        </div>
+                    </a>
+                }
+            }
+        </div>
+    </div>
+</div>
+
+@* Share Modal as it was *@
+<div class="modal fade" id="youtubeShareModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg" style="border-radius: 16px;">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">Share</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="d-flex justify-content-between mb-4 text-center">
+                    <a href="#" id="share-wa" target="_blank" class="share-icon-wrapper">
+                        <div class="share-icon-circle" style="background:#25D366;"><i class="fab fa-whatsapp"></i></div>
+                        <small>WhatsApp</small>
+                    </a>
+                    <a href="#" id="share-fb" target="_blank" class="share-icon-wrapper">
+                        <div class="share-icon-circle" style="background:#1877F2;"><i class="fab fa-facebook-f"></i></div>
+                        <small>Facebook</small>
+                    </a>
+                    <a href="#" id="share-tw" target="_blank" class="share-icon-wrapper">
+                        <div class="share-icon-circle" style="background:#000;"><i class="fab fa-x-twitter"></i></div>
+                        <small>X</small>
+                    </a>
+                    <a href="#" id="share-em" target="_blank" class="share-icon-wrapper">
+                        <div class="share-icon-circle" style="background:#FF0000;"><i class="fas fa-envelope"></i></div>
+                        <small>Email</small>
+                    </a>
+                </div>
+                <div class="bg-light p-3 rounded-3 d-flex align-items-center border">
+                    <input type="text" id="youtubeLinkInput" readonly class="form-control-plaintext small text-muted px-2" value="">
+                    <button class="btn btn-primary rounded-pill px-4 fw-bold shadow-sm" onclick="copyModalUrl()">Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleSubscribe() {
+        const btn = document.getElementById('subscribeBtn');
+        if (btn.innerText === "Subscribe") {
+            btn.innerText = "Subscribed";
+            btn.classList.add('btn-subscribed');
+            btn.classList.remove('btn-dark');
+        } else {
+            if(confirm("Do you want to unsubscribe?")) {
+                btn.innerText = "Subscribe";
+                btn.classList.remove('btn-subscribed');
+                btn.classList.add('btn-dark');
+            }
+        }
+    }
+
+    var shareModal = document.getElementById('youtubeShareModal');
+    shareModal.addEventListener('show.bs.modal', function (event) {
+        let fullMediaLink = "";
+        let isYT = "@isYouTube".toLowerCase();
+        
+        if (isYT === "true") {
+            fullMediaLink = "https://www.youtube.com/watch?v=@cleanVideoId";
+        } else {
+            fullMediaLink = window.location.href;
+        }
+        
+        document.getElementById('youtubeLinkInput').value = fullMediaLink;
+        const shareText = "Check out this content: ";
+        document.getElementById('share-wa').href = "https://api.whatsapp.com/send?text=" + encodeURIComponent(shareText + fullMediaLink);
+        document.getElementById('share-fb').href = "https://www.facebook.com/sharer/sharer.php?u=" + encodeURIComponent(fullMediaLink);
+        document.getElementById('share-tw').href = "https://twitter.com/intent/tweet?url=" + encodeURIComponent(fullMediaLink);
+        document.getElementById('share-em').href = "mailto:?body=" + encodeURIComponent(fullMediaLink);
+    });
+
+    function copyModalUrl() {
+        const copyText = document.getElementById("youtubeLinkInput");
+        copyText.select();
+        navigator.clipboard.writeText(copyText.value).then(() => {
+            const copyBtn = event.target;
+            copyBtn.innerText = "Copied!";
+            setTimeout(() => { copyBtn.innerText = "Copy"; }, 2000);
+        });
+    }
+</script>

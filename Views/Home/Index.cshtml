@@ -1,0 +1,86 @@
+﻿@model IEnumerable<CodeAlpha_SocialMedia.Models.Post>
+
+@{
+    ViewData["Title"] = "Home Feed";
+    var currentFilter = Context.Request.Query["searchString"].ToString();
+}
+
+<style>
+    .video-card { cursor: pointer; transition: 0.3s; border: none; background: transparent; text-decoration: none !important; display: block; color: inherit; height: 100%; }
+    .thumbnail-container { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #000; position: relative; }
+    .thumbnail-element { width: 100%; height: 100%; object-fit: cover; }
+    .video-info { display: flex; margin-top: 12px; gap: 12px; }
+    .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: #6c757d; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; flex-shrink: 0; }
+    .video-title { font-size: 0.95rem; font-weight: 600; color: #030303; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .video-meta { font-size: 0.85rem; color: #606060; }
+</style>
+
+@* YouTube Search Categories *@
+<div class="d-flex gap-2 mb-4 overflow-auto pb-2 category-container" style="white-space: nowrap;">
+    <a href="/Search/Index?query=All" class="btn btn-sm btn-dark rounded-pill px-3">All</a>
+    <a href="/Search/Index?query=Gaming" class="btn btn-sm btn-light border rounded-pill px-3">Gaming</a>
+    <a href="/Search/Index?query=Music" class="btn btn-sm btn-light border rounded-pill px-3">Music</a>
+    <a href="/Search/Index?query=Data Science" class="btn btn-sm btn-light border rounded-pill px-3">Data Science</a>
+    <a href="/Search/Index?query=Pakistani Dramas" class="btn btn-sm btn-light border rounded-pill px-3">Dramas</a>
+</div>
+
+@* Displaying Local Uploads from Model *@
+<div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-3 row-cols-xl-4 g-4">
+    @if (Model != null && Model.Any())
+    {
+        @foreach (var item in Model)
+        {
+            <div class="col">
+                <a asp-controller="Posts" asp-action="Details" asp-route-id="@item.PostId" class="video-card">
+                    <div class="thumbnail-container shadow-sm">
+                        @{
+                            var ext = System.IO.Path.GetExtension(item.ImagePath)?.ToLower();
+                            bool isVid = ext == ".mp4" || ext == ".webm" || ext == ".ogg";
+                            
+                            // Essential Path Correction: Remove wwwroot and handle slashes
+                            var rawPath = item.ImagePath ?? "";
+                            var cleanPath = rawPath.Replace("wwwroot", "").Replace("\\", "/").TrimStart('/');
+                            var finalUrl = Url.Content("~/" + cleanPath);
+                        }
+
+                        @if (isVid)
+                        {
+                            <video class="thumbnail-element" muted preload="metadata">
+                                <source src="@finalUrl" type="video/mp4">
+                            </video>
+                            <div style="position:absolute; top:10px; right:10px; color:white; background:rgba(0,0,0,0.5); padding:2px 6px; border-radius:4px;">
+                                <i class="fas fa-play"></i>
+                            </div>
+                        }
+                        else
+                        {
+                            <img src="@finalUrl" class="thumbnail-element" onerror="this.src='/images/default-thumbnail.jpg';" />
+                        }
+                    </div>
+
+                    <div class="video-info">
+                        <div class="user-avatar">
+                            @(item.Content?.Length > 0 ? item.Content.Substring(0,1).ToUpper() : "U")
+                        </div>
+                        <div>
+                            <div class="video-title">@item.Content</div>
+                            <div class="video-meta">
+                                <span>Local Upload</span> • <span>@item.CreatedAt?.ToString("MMM dd, yyyy")</span>
+                            </div>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="col-12 text-center mt-5">
+            <div class="p-5 border rounded-3 bg-light">
+                <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No uploads found in Database.</h5>
+                <p>Try uploading a video or image first!</p>
+            </div>
+        </div>
+    }
+</div>

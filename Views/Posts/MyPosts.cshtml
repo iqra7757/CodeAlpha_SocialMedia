@@ -1,0 +1,152 @@
+﻿@model IEnumerable<CodeAlpha_SocialMedia.Models.Post>
+
+@{
+    ViewData["Title"] = "My Content";
+}
+
+<style>
+    .my-video-card {
+        background: white;
+        border-radius: 12px;
+        overflow: hidden;
+        transition: 0.3s;
+        height: 100%;
+        border: 1px solid #eee;
+    }
+
+        .my-video-card:hover {
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+
+    .thumb-wrapper {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        background: #000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .thumb-img, .thumb-video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .video-overlay {
+        position: absolute;
+        color: white;
+        font-size: 1.5rem;
+        opacity: 0.8;
+        pointer-events: none;
+    }
+
+    .card-body-custom {
+        padding: 12px;
+    }
+
+    .post-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #030303;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        margin-bottom: 5px;
+        height: 2.4rem;
+    }
+
+    .post-date {
+        font-size: 0.85rem;
+        color: #606060;
+    }
+
+    .action-buttons {
+        display: flex;
+        gap: 5px;
+        margin-top: 10px;
+    }
+</style>
+
+<div class="container-fluid px-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h4 class="fw-bold mb-0">Channel content</h4>
+            <small class="text-muted">Manage your uploads</small>
+        </div>
+        <a asp-controller="Posts" asp-action="Create" class="btn btn-danger rounded-pill px-4 fw-bold">
+            <i class="fas fa-plus me-2"></i> CREATE
+        </a>
+    </div>
+
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 row-cols-xl-5 g-4">
+        @foreach (var item in Model)
+        {
+            <div class="col">
+                <div class="my-video-card shadow-sm">
+                    <div class="thumb-wrapper">
+                        @{
+                            var extension = System.IO.Path.GetExtension(item.ImagePath)?.ToLower();
+                            bool isVideo = extension == ".mp4" || extension == ".webm" || extension == ".ogg";
+                            
+                            // UPDATE 1: Path normalization and removing "wwwroot" for browser display
+                            var displayPath = string.IsNullOrEmpty(item.ImagePath) ? "" : item.ImagePath.Replace("\\", "/").Replace("wwwroot", "");
+                            if (!string.IsNullOrEmpty(displayPath) && !displayPath.StartsWith("/"))
+                            {
+                                displayPath = "/" + displayPath;
+                            }
+                        }
+
+                        @if (isVideo)
+                        {
+                            <video class="thumb-video" muted preload="metadata">
+                                <source src="@Url.Content("~" + displayPath)" type="video/mp4">
+                            </video>
+                            <div class="video-overlay">
+                                <i class="fas fa-play-circle"></i>
+                            </div>
+                        }
+                        else
+                        {
+                            <img src="@(string.IsNullOrEmpty(displayPath) ? Url.Content("~/images/default-thumbnail.jpg") : Url.Content("~" + displayPath))"
+                                 class="thumb-img"
+                                 onerror="this.src='/images/default-thumbnail.jpg';" />
+                        }
+                    </div>
+                    
+                    <div class="card-body-custom">
+                        <div class="post-title" title="@item.Content">@item.Content</div>
+                        <div class="post-date">
+                            <i class="far fa-calendar-alt me-1"></i> @(item.CreatedAt?.ToString("MMM dd, yyyy") ?? "N/A")
+                        </div>
+                        
+                        <div class="action-buttons">
+                            @* UPDATE 2: Link changed to 'Details' to allow video to play on its own page *@
+                            <a asp-controller="Posts" asp-action="Details" asp-route-id="@item.PostId" class="btn btn-sm btn-light flex-grow-1 border">
+                                <i class="fas fa-eye"></i> View
+                            </a>
+                            
+                            <form asp-controller="Posts" asp-action="Delete" asp-route-id="@item.PostId" method="post" class="flex-grow-1" onsubmit="return confirm('Delete Permanently?')">
+                                <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    @if (Model == null || !Model.Any())
+    {
+        <div class="text-center mt-5">
+            <img src="https://www.gstatic.com/youtube/img/channels/empty_channel_video.png" width="120" class="mb-3" style="opacity: 0.5;">
+            <h5 class="text-muted">Nothing uploaded yet</h5>
+            <p class="text-muted small">Click on 'CREATE' to upload your first video or image..</p>
+        </div>
+    }
+</div>

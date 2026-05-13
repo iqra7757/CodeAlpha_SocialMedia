@@ -1,0 +1,184 @@
+﻿@model IEnumerable<CodeAlpha_SocialMedia.Models.Post>
+
+@{
+    ViewData["Title"] = "Liked Content";
+}
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+
+<style>
+    /* Main container ko sidebar se door rakhne ke liye margin */
+    .liked-content-wrapper {
+        padding: 20px;
+        min-height: 100vh;
+    }
+
+    .liked-header-card {
+        background: linear-gradient(180deg, #2b2b2b 0%, #000000 100%);
+        border-radius: 15px;
+        padding: 25px;
+        color: white;
+        /* Desktop par card move nahi karega scroll karte waqt */
+        position: sticky;
+        top: 20px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    }
+
+    .post-list-item {
+        transition: 0.2s;
+        border-radius: 12px;
+        margin-bottom: 8px;
+        text-decoration: none !important;
+        color: inherit !important;
+        display: flex;
+        align-items: center;
+        padding: 10px;
+    }
+
+        .post-list-item:hover {
+            background-color: #f2f2f2;
+        }
+
+    .thumbnail-box {
+        width: 160px;
+        aspect-ratio: 16/9;
+        background: #000;
+        border-radius: 8px;
+        overflow: hidden;
+        flex-shrink: 0;
+        position: relative;
+    }
+
+    .thumbnail-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .video-icon-overlay {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: rgba(255,255,255,0.9);
+        font-size: 1.2rem;
+        background: rgba(0,0,0,0.4);
+        padding: 8px;
+        border-radius: 50%;
+    }
+
+    .btn-play-all {
+        background-color: white !important;
+        color: black !important;
+        border: none !important;
+        transition: 0.3s;
+    }
+
+        .btn-play-all:hover {
+            background-color: #e5e5e5 !important;
+        }
+</style>
+
+<div class="container-fluid liked-content-wrapper">
+    <div class="row">
+        <div class="col-lg-4 col-xl-3 mb-4">
+            <div class="liked-header-card">
+                <div class="mb-4" style="aspect-ratio: 16/9; background: rgba(255,255,255,0.1); border-radius: 12px; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+                    @if (Model != null && Model.Any())
+                    {
+                        @if (Model.First().ImagePath.ToLower().EndsWith(".mp4"))
+                        {
+                            <video style="width: 100%; height: 100%; object-fit: cover; filter: blur(2px) brightness(0.6);">
+                                <source src="@Model.First().ImagePath#t=0.5" type="video/mp4">
+                            </video>
+                        }
+                        else
+                        {
+                            <img src="@Model.First().ImagePath" style="width: 100%; height: 100%; object-fit: cover; filter: blur(2px) brightness(0.6);" />
+                        }
+                    }
+                    <i class="fas fa-thumbs-up fa-3x position-absolute" style="z-index: 1;"></i>
+                </div>
+                
+                <h2 class="fw-bold h4">Liked Content</h2>
+                <div class="mb-4">
+                    <p class="mb-0 fw-bold">@Model.Count() posts</p>
+                    <p class="text-white-50 small">Updated @DateTime.Now.ToString("MMM dd, yyyy")</p>
+                </div>
+                
+                <div class="mt-4">
+                    @if (Model != null && Model.Any())
+                    {
+                        <a asp-controller="Posts" asp-action="Details" asp-route-id="@Model.First().PostId" class="btn btn-play-all rounded-pill px-4 fw-bold w-100 mb-2">
+                            <i class="fas fa-play me-2"></i> Play all
+                        </a>
+                    }
+                    else
+                    {
+                        <button class="btn btn-light rounded-pill px-4 fw-bold w-100 mb-2" disabled>
+                            <i class="fas fa-play me-2"></i> Play all
+                        </button>
+                    }
+                    <button class="btn btn-outline-light rounded-pill px-4 fw-bold w-100 border-0" style="background: rgba(255,255,255,0.1);">
+                        <i class="fas fa-random me-2"></i> Shuffle
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8 col-xl-9">
+            <div class="d-flex flex-column">
+                @if (Model != null && Model.Any())
+                {
+                    int index = 1;
+                    foreach (var post in Model)
+                    {
+                        <a asp-controller="Post" asp-action="Details" asp-route-id="@post.PostId" class="post-list-item">
+                            <span class="me-3 text-muted fw-bold" style="width: 20px; font-size: 0.9rem;">@index</span>
+                            
+                            <div class="thumbnail-box me-3">
+                                @if (!string.IsNullOrEmpty(post.ImagePath))
+                                {
+                                    var ext = System.IO.Path.GetExtension(post.ImagePath).ToLower();
+                                    if (new[] { ".mp4", ".webm", ".ogg" }.Contains(ext))
+                                    {
+                                        <video class="thumbnail-img">
+                                            <source src="@post.ImagePath#t=0.5" type="video/mp4">
+                                        </video>
+                                        <div class="video-icon-overlay"><i class="fas fa-play"></i></div>
+                                    }
+                                    else
+                                    {
+                                        <img src="@post.ImagePath" class="thumbnail-img" onerror="this.src='/images/default-post.png';" />
+                                    }
+                                }
+                            </div>
+
+                            <div class="flex-grow-1 overflow-hidden">
+                                <h6 class="fw-bold mb-1 text-truncate" style="font-size: 1rem;">@post.Content</h6>
+                                <div class="text-muted small">
+                                    <span class="fw-bold">@post.User?.FullName</span> •
+                                    <span>@post.CreatedAt?.ToString("MMM dd")</span>
+                                </div>
+                            </div>
+
+                            <div class="ms-auto px-2">
+                                <i class="fas fa-ellipsis-v text-muted"></i>
+                            </div>
+                        </a>
+                        index++;
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="far fa-thumbs-up fa-4x text-muted mb-3"></i>
+                        <h5>No liked posts yet</h5>
+                        <p class="text-muted">Tap the like button on any post to see it here.</p>
+                        <a asp-controller="Home" asp-action="Index" class="btn btn-primary rounded-pill px-4">Explore Posts</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

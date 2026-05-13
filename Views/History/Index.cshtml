@@ -1,0 +1,147 @@
+﻿@model IEnumerable<CodeAlpha_SocialMedia.Models.History>
+
+@{
+    ViewData["Title"] = "Watch History";
+}
+
+<div class="container mt-4 px-lg-5">
+    <div class="row">
+        <div class="col-lg-8">
+            <h4 class="fw-bold mb-4">Watch history</h4>
+            
+            <div id="historyList">
+                @if (Model != null && Model.Any())
+                {
+                    foreach (var item in Model)
+                    {
+                        <div class="d-flex gap-3 mb-4 align-items-start post-history-item p-2">
+                            <div style="width: 240px; aspect-ratio: 16/9; background: #000; border-radius: 12px; overflow: hidden; flex-shrink: 0; position: relative;">
+                                <a asp-controller="Posts" asp-action="Details" asp-route-id="@item.PostId">
+                                    @if (item.Post?.ImagePath != null)
+                                    {
+                                        var ext = System.IO.Path.GetExtension(item.Post.ImagePath).ToLower();
+                                        if (new[] { ".mp4", ".webm", ".ogg" }.Contains(ext))
+                                        {
+                                            <video class="w-100 h-100" style="object-fit: cover;">
+                                                <source src="@item.Post.ImagePath#t=0.5" type="video/mp4">
+                                            </video>
+                                            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; opacity: 0.8;">
+                                                <i class="fas fa-play-circle fa-2x"></i>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <img src="@item.Post.ImagePath" class="w-100 h-100" style="object-fit: cover;" onerror="this.src='/images/default-post.png';" />
+                                        }
+                                    }
+                                </a>
+                            </div>
+                            
+                            <div class="flex-grow-1 overflow-hidden">
+                                <a asp-controller="Posts" asp-action="Details" asp-route-id="@item.PostId" class="text-decoration-none text-dark">
+                                    <h5 class="fw-bold mb-1 history-title" style="font-size: 1.1rem;">@(item.Post?.Content ?? "Untitled Post")</h5>
+                                </a>
+                                <small class="text-muted d-block">
+                                    @(item.Post?.User?.FullName ?? "Unknown User") •
+                                    @(item.ViewedAt?.ToString("MMM dd, h:mm tt") ?? "Recently")
+                                </small>
+                                <p class="text-muted small mt-2 d-none d-md-block text-truncate" style="max-width: 400px;">
+                                    Viewed on @(item.ViewedAt?.ToString("MMMM dd, yyyy") ?? "Unknown Date")
+                                </p>
+                            </div>
+
+                            <div class="ms-auto">
+                                <form asp-controller="History" asp-action="RemoveFromHistory" method="post">
+                                    <input type="hidden" name="historyId" value="@item.HistoryId" />
+                                    <button type="submit" class="btn btn-sm btn-light rounded-circle" title="Remove from history">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-5">
+                        <i class="fas fa-history fa-4x text-muted mb-3"></i>
+                        <h5>This list has no videos.</h5>
+                        <p class="text-muted">Videos you watch will be shown here.</p>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <div class="col-lg-4 ps-lg-5 border-start d-none d-lg-block">
+            <div class="mb-4">
+                <div class="input-group bg-light rounded-pill px-3 py-1">
+                    <span class="input-group-text bg-transparent border-0"><i class="fas fa-search text-muted"></i></span>
+                    <input type="text" id="historySearch" class="form-control bg-transparent border-0 shadow-none" placeholder="Search watch history">
+                </div>
+            </div>
+            <hr />
+            <div class="d-grid gap-2">
+                <form asp-controller="History" asp-action="ClearHistory" method="post" onsubmit="return confirm('Delete all watch history?');">
+                    <button type="submit" class="btn btn-link text-dark text-start text-decoration-none py-2 px-0 w-100">
+                        <i class="fas fa-trash me-3"></i> Clear all watch history
+                    </button>
+                </form>
+                
+                <form asp-controller="History" asp-action="TogglePauseHistory" method="post">
+                    <button type="submit" class="btn btn-link text-dark text-start text-decoration-none py-2 px-0 w-100">
+                        @if (ViewBag.IsPaused == true)
+                        {
+                            <span class="text-primary fw-bold"><i class="fas fa-play me-3"></i> Turn on watch history</span>
+                        }
+                        else
+                        {
+                            <span><i class="fas fa-pause me-3"></i> Pause watch history</span>
+                        }
+                    </button>
+                </form>
+
+                <form asp-controller="History" asp-action="ManageHistory" method="post">
+                    <button type="submit" class="btn btn-link text-dark text-start text-decoration-none py-2 px-0 w-100">
+                        <i class="fas fa-cog me-3"></i> Manage all history
+                    </button>
+                </form>
+            </div>
+            <div class="mt-4 p-3 bg-light rounded-3">
+                <p class="small text-muted mb-0">Your watch history is used to improve your recommendations. Only you can see it.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .post-history-item {
+        transition: 0.2s;
+        border-radius: 8px;
+    }
+
+        .post-history-item:hover {
+            background-color: #f8f9fa;
+        }
+
+            .post-history-item:hover h5 {
+                color: #065fd4;
+            }
+</style>
+
+@section Scripts {
+    <script>
+        // Client-side Search Logic
+        document.getElementById('historySearch').addEventListener('keyup', function() {
+            let filter = this.value.toLowerCase();
+            let items = document.querySelectorAll('.post-history-item');
+            
+            items.forEach(function(item) {
+                let titleElement = item.querySelector('.history-title');
+                if (titleElement) {
+                    let title = titleElement.innerText.toLowerCase();
+                    item.style.display = title.includes(filter) ? "" : "none";
+                }
+            });
+        });
+    </script>
+}

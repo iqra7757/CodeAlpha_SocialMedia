@@ -1,0 +1,78 @@
+﻿@model CodeAlpha_SocialMedia.Models.Post
+
+@{
+    ViewData["Title"] = "Upload Content";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7 border p-4 rounded-4 shadow-sm bg-white">
+            <h3 class="text-center mb-4"><i class="fas fa-cloud-upload-alt text-danger"></i> Upload Video or Image</h3>
+            
+            <form id="uploadForm" asp-action="Create" method="post" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Post Title / Description</label>
+                    <textarea asp-for="Content" class="form-control" rows="3" placeholder="Describe your video or post..." required></textarea>
+                    <span asp-validation-for="Content" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Select File (Video or Image)</label>
+                    <!-- yahan accept mein video/* add kiya hai taake har qism ki video select ho sakay -->
+                    <input type="file" name="postImage" id="fileInput" class="form-control" accept="video/*,image/*" required />
+                    <small class="text-muted">Supports MP4, WebM, PNG, JPG, etc.</small>
+                </div>
+
+                <!-- Progress Bar: Bari videos ke liye zaroori hai -->
+                <div id="progressContainer" class="progress mb-3 d-none" style="height: 25px;">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated bg-danger"
+                         role="progressbar" style="width: 0%;">
+                        0%
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2">
+                    <button type="submit" id="submitBtn" class="btn btn-danger btn-lg rounded-pill fw-bold">
+                        <i class="fas fa-share"></i> PUBLISH
+                    </button>
+                    <a asp-controller="Home" asp-action="Index" class="btn btn-light rounded-pill">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // AJAX Upload logic taake bari video ka progress nazar aaye
+        document.getElementById('uploadForm').onsubmit = function (e) {
+            e.preventDefault();
+
+            var formData = new FormData(this);
+            var xhr = new XMLHttpRequest();
+            
+            // Progress container show karein
+            document.getElementById('progressContainer').classList.remove('d-none');
+            document.getElementById('submitBtn').disabled = true;
+
+            xhr.upload.addEventListener("progress", function (evt) {
+                if (evt.lengthComputable) {
+                    var percentComplete = Math.round((evt.loaded / evt.total) * 100);
+                    var progressBar = document.getElementById('progressBar');
+                    progressBar.style.width = percentComplete + '%';
+                    progressBar.innerHTML = percentComplete + '%';
+                }
+            }, false);
+
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState == 4 && xhr.status == 200) {
+                    // Upload hone ke baad Home page par le jaye
+                    window.location.href = '/Home/Index';
+                }
+            };
+
+            xhr.open("POST", this.action, true);
+            xhr.send(formData);
+        };
+    </script>
+}
